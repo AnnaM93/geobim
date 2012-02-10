@@ -17,32 +17,47 @@ package org.bimserver.citygml;
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+/* TODO: Units
+ */
+
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.xml.bind.JAXBException;
 
+import org.apache.commons.beanutils.PropertyUtils;
 import org.bimserver.citygml.xbuilding.GlobalIdType;
+import org.bimserver.models.ifc2x3.IfcBoolean;
 import org.bimserver.models.ifc2x3.IfcBuilding;
 import org.bimserver.models.ifc2x3.IfcBuildingStorey;
 import org.bimserver.models.ifc2x3.IfcColumn;
+import org.bimserver.models.ifc2x3.IfcCurtainWall;
 import org.bimserver.models.ifc2x3.IfcDoor;
 import org.bimserver.models.ifc2x3.IfcElement;
 import org.bimserver.models.ifc2x3.IfcFlowTerminal;
 import org.bimserver.models.ifc2x3.IfcFurnishingElement;
 import org.bimserver.models.ifc2x3.IfcInternalOrExternalEnum;
+import org.bimserver.models.ifc2x3.IfcObject;
 import org.bimserver.models.ifc2x3.IfcObjectDefinition;
 import org.bimserver.models.ifc2x3.IfcOpeningElement;
 import org.bimserver.models.ifc2x3.IfcPostalAddress;
 import org.bimserver.models.ifc2x3.IfcProduct;
 import org.bimserver.models.ifc2x3.IfcProject;
+import org.bimserver.models.ifc2x3.IfcProperty;
+import org.bimserver.models.ifc2x3.IfcPropertySet;
+import org.bimserver.models.ifc2x3.IfcPropertySetDefinition;
+import org.bimserver.models.ifc2x3.IfcPropertySingleValue;
 import org.bimserver.models.ifc2x3.IfcRelContainedInSpatialStructure;
 import org.bimserver.models.ifc2x3.IfcRelDecomposes;
+import org.bimserver.models.ifc2x3.IfcRelDefines;
+import org.bimserver.models.ifc2x3.IfcRelDefinesByProperties;
 import org.bimserver.models.ifc2x3.IfcRelFillsElement;
 import org.bimserver.models.ifc2x3.IfcRelSpaceBoundary;
 import org.bimserver.models.ifc2x3.IfcRelVoidsElement;
@@ -53,9 +68,11 @@ import org.bimserver.models.ifc2x3.IfcSlab;
 import org.bimserver.models.ifc2x3.IfcSlabTypeEnum;
 import org.bimserver.models.ifc2x3.IfcSpace;
 import org.bimserver.models.ifc2x3.IfcStair;
+import org.bimserver.models.ifc2x3.IfcValue;
 import org.bimserver.models.ifc2x3.IfcVirtualElement;
 import org.bimserver.models.ifc2x3.IfcWall;
 import org.bimserver.models.ifc2x3.IfcWindow;
+import org.bimserver.models.ifc2x3.Tristate;
 import org.bimserver.plugins.PluginException;
 import org.bimserver.plugins.PluginManager;
 import org.bimserver.plugins.ifcengine.IfcEngine;
@@ -75,16 +92,23 @@ import org.citygml4j.factory.GMLFactory;
 import org.citygml4j.factory.XALFactory;
 import org.citygml4j.impl.citygml.generics.DoubleAttributeImpl;
 import org.citygml4j.model.citygml.ade.ADEComponent;
+import org.citygml4j.model.citygml.appearance.Appearance;
+import org.citygml4j.model.citygml.appearance.X3DMaterial;
 import org.citygml4j.model.citygml.building.AbstractBoundarySurface;
+import org.citygml4j.model.citygml.building.AbstractBuilding;
 import org.citygml4j.model.citygml.building.BoundarySurfaceProperty;
 import org.citygml4j.model.citygml.building.Building;
+import org.citygml4j.model.citygml.building.BuildingInstallation;
+import org.citygml4j.model.citygml.building.BuildingPart;
 import org.citygml4j.model.citygml.building.Door;
 import org.citygml4j.model.citygml.building.FloorSurface;
+import org.citygml4j.model.citygml.building.IntBuildingInstallation;
 import org.citygml4j.model.citygml.building.InteriorRoomProperty;
 import org.citygml4j.model.citygml.building.OpeningProperty;
 import org.citygml4j.model.citygml.building.RoofSurface;
 import org.citygml4j.model.citygml.building.Room;
 import org.citygml4j.model.citygml.building.Window;
+import org.citygml4j.model.citygml.cityobjectgroup.CityObjectGroup;
 import org.citygml4j.model.citygml.core.AbstractCityObject;
 import org.citygml4j.model.citygml.core.Address;
 import org.citygml4j.model.citygml.core.AddressProperty;
@@ -92,14 +116,14 @@ import org.citygml4j.model.citygml.core.CityModel;
 import org.citygml4j.model.citygml.core.CityObjectMember;
 import org.citygml4j.model.citygml.core.XalAddressProperty;
 import org.citygml4j.model.citygml.generics.DoubleAttribute;
+import org.citygml4j.model.gml.base.AbstractGML;
 import org.citygml4j.model.gml.basicTypes.Code;
+import org.citygml4j.model.gml.feature.AbstractFeature;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurface;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurfaceProperty;
 import org.citygml4j.model.gml.geometry.primitives.DirectPositionList;
-import org.citygml4j.model.gml.geometry.primitives.Exterior;
 import org.citygml4j.model.gml.geometry.primitives.LinearRing;
 import org.citygml4j.model.gml.geometry.primitives.Polygon;
-import org.citygml4j.model.gml.geometry.primitives.SurfaceProperty;
 import org.citygml4j.model.module.citygml.CityGMLVersion;
 import org.citygml4j.model.xal.AddressDetails;
 import org.citygml4j.xml.io.CityGMLOutputFactory;
@@ -112,6 +136,24 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
 
 public class CityGmlSerializer extends EmfSerializer {
+	class StandardMaterials {
+		private X3DMaterial glass;
+		
+		StandardMaterials(CityModel cityModel) {
+			Appearance appearance = citygml.createAppearance();
+			cityModel.addAppearanceMember(citygml.createAppearanceMember(appearance));
+			
+			glass = citygml.createX3DMaterial();
+			glass.setDiffuseColor(citygml.createColor(0.7, 0.7, 1.0));
+			glass.setTransparency(0.9);		
+			appearance.addSurfaceDataMember(citygml.createSurfaceDataProperty(glass));			
+		}
+
+		public void assignGlass(MultiSurface multiSurface) {
+			glass.addTarget(hrefTo(multiSurface));
+		}
+	}
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(CityGmlSerializer.class);
 	private IfcEngine ifcEngine;
 	private GMLFactory gml;
@@ -121,22 +163,20 @@ public class CityGmlSerializer extends EmfSerializer {
 	private CityGMLContext ctx;
 	private IfcEngineModel ifcEngineModel;
 	private IfcEngineGeometry geometry;
-
-	// private ObjectFactory xbuilding;
-	// private org.citygml4j.jaxb.gml._3_1_1.ObjectFactory gmlObjectFactory;
+	private StandardMaterials standardMaterials;
+	
+	
 
 	@Override
 	public void init(IfcModelInterface ifcModel, ProjectInfo projectInfo, PluginManager pluginManager, IfcEngine ifcEngine) throws SerializerException {
 		super.init(ifcModel, projectInfo, pluginManager, ifcEngine);
-		this.model = ifcModel;
+		
 		ctx = new CityGMLContext();
 		citygml = new CityGMLFactory();
 		gml = new GMLFactory();
 		xal = new XALFactory();
-		// xbuilding = new ObjectFactory();
-		// gmlObjectFactory = new org.citygml4j.jaxb.gml._3_1_1.ObjectFactory();
 		convertedObjects = new HashMap<EObject, AbstractCityObject>();
-
+		
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
 		try {
@@ -149,26 +189,471 @@ public class CityGmlSerializer extends EmfSerializer {
 		}
 	}
 
-	private Code createName(String value) {
+	private Code createCode(String value) {
 		Code code = gml.createCode();
 		code.setValue(value);
 		return code;
 	}
 
+	private Code createCode(String value, String codeSpace) {
+		Code code = gml.createCode();
+		code.setValue(value);
+		code.setCodeSpace(codeSpace);
+		return code;
+	}
+	
+	private List<Code> createCodeList(String... values) {
+		List<Code> list = new LinkedList<Code>();
+		for(String value : values) {
+			list.add(createCode(value));
+		}
+		return list;
+	}
+	
+	private void setName(List<Code> name, String value) {
+		if (value != null && !value.trim().equals("")) {
+			name.add(createCode(value));
+		}
+	}
+	
+	private String hrefTo(AbstractGML abstractGML) {
+		if(abstractGML.getId() == null) {
+			abstractGML.setId(UUID.randomUUID().toString());
+		}
+		return "#" + abstractGML.getId();
+	}
+		
+	/**
+	 * TODO: What does this do?
+	 * @param cityObject
+	 * @param ifcRoot
+	 */
+	private void setGlobalId(AbstractCityObject cityObject, IfcRoot ifcRoot) {
+		cityObject.setId(UUID.randomUUID().toString());
+
+		if (ifcRoot != null && ifcRoot.getGlobalId() != null && ifcRoot.getGlobalId().getWrappedValue() != null) {
+			GlobalIdType globalId = new GlobalIdType();
+			globalId.setValue(ifcRoot.getGlobalId().getWrappedValue());
+						
+			for (Element element : globalId.get_ADEComponent()) {
+				ADEComponent adeComponent = new ADEComponent(element);
+				cityObject.addGenericApplicationPropertyOfCityObject(adeComponent);
+			}
+		}
+		
+	}
+	
+	private void assignGuid(AbstractFeature cityObject, IfcRoot ifcRoot) {
+		// TODO: Implement this
+		
+		// Use the ifc uuid's as gml:id's
+		// Or use the xbuilding ADE to assign the uuid's?
+		// Should we decode the ifc uuid's to normal onces?
+		
+		if(ifcRoot != null && ifcRoot.getGlobalId() != null && ifcRoot.getGlobalId().getWrappedValue() != null) {
+			String ifcUuid = ifcRoot.getGlobalId().getWrappedValue();
+			System.out.println("UUID: " + ifcUuid);
+		}
+	}
+	
 	@Override
 	protected void reset() {
 		setMode(Mode.BODY);
 	}
-
+	
+	@Override
 	public boolean write(OutputStream out) throws SerializerException {
+		if(getMode() == Mode.FINISHED) return false;
+				
+		if(getMode() == Mode.BODY) {
+			try {
+				CityModel cityModel = buildCityModel();
+				writeCityGML(cityModel, out);
+				
+				setMode(Mode.FINISHED);
+				return true;
+			} catch (Exception e) {
+				setMode(Mode.FINISHED);
+				throw new SerializerException(e);
+			} finally {
+				if(ifcEngine != null) {
+					ifcEngine.close();
+					ifcEngine = null;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Write given citymodel to given OutputStream.
+	 */
+	private void writeCityGML(CityModel cityModel, OutputStream out) throws JAXBException, CityGMLReadException, CityGMLWriteException {
+		JAXBBuilder builder = ctx.createJAXBBuilder(getClass().getClassLoader());
+		CityGMLOutputFactory outputFactory = builder.createCityGMLOutputFactory(CityGMLVersion.v1_0_0);
+		PrintWriter writer = new PrintWriter(out);
+		CityGMLWriter cityGmlWriter = outputFactory.createCityGMLWriter(writer);
+
+		cityGmlWriter.setPrefixes(CityGMLVersion.v1_0_0);
+		cityGmlWriter.setSchemaLocations(CityGMLVersion.v1_0_0);
+		cityGmlWriter.setIndentString("  ");
+		cityGmlWriter.write(cityModel);
+		cityGmlWriter.close();
+		writer.flush();
+	}
+	
+	/**
+	 * Build up a CityModel from the ifcModel and return it.
+	 * @throws PluginException 
+	 * @throws SerializerException 
+	 */
+	private CityModel buildCityModel() throws PluginException, SerializerException {
+		IfcModelInterface ifcModel = getModel();
+		
+		CityModel cityModel = citygml.createCityModel();
+		cityModel.setName(createCodeList(ifcModel.getName()));
+		
+		standardMaterials = new StandardMaterials(cityModel);
+
+		for(IfcProject ifcProject : getModel().getAll(IfcProject.class)) {
+			buildCityModel(cityModel, ifcProject);
+			break; // Since there is only one ifcProject per ifc file
+		}
+			
+		return cityModel;
+	}
+		
+	/**
+	 * Pre: ifcEngine field must be initialized
+	 * @param cityModel the base of the citygml data structure
+	 * @param ifcProject the base of the ifc project
+	 * @throws SerializerException 
+	 */
+	private void buildCityModel(CityModel cityModel, IfcProject ifcProject) throws SerializerException {
+		assignGuid(cityModel, ifcProject);
+		
+		for(IfcRelDecomposes ifcRelDecomposes : ifcProject.getIsDecomposedBy()) {
+			for(IfcObjectDefinition ifcObjectDefinition: ifcRelDecomposes.getRelatedObjects()) {
+				if(ifcObjectDefinition instanceof IfcBuilding) {
+					Building building = buildBuildingOrBuildingPart(cityModel, (IfcBuilding)ifcObjectDefinition, citygml.createBuilding());
+					if(building != null) {
+						cityModel.addCityObjectMember(citygml.createCityObjectMember(building));
+					}
+				}
+				else if(ifcObjectDefinition instanceof IfcSite) {
+					CityObjectGroup site = buildSite(cityModel, (IfcSite)ifcObjectDefinition);
+					if(site != null) {
+						cityModel.addCityObjectMember(citygml.createCityObjectMember(site));
+					}
+				}
+				else {
+					LOGGER.warn("Unhandled object in city model: " + ifcObjectDefinition);
+				}
+			}
+		}
+	}
+
+	private CityObjectGroup buildSite(CityModel cityModel, IfcSite ifcSite) throws SerializerException {
+		CityObjectGroup site = citygml.createCityObjectGroup();
+		site.setClazz("site");
+		setName(site.getName(), ifcSite.getName());
+		setGlobalId(site, ifcSite);
+
+		for(IfcRelDecomposes ifcRelDecomposes : ifcSite.getIsDecomposedBy()) {
+			for(IfcObjectDefinition ifcObjectDefinition: ifcRelDecomposes.getRelatedObjects()) {
+				if(ifcObjectDefinition instanceof IfcBuilding) {
+					Building building = buildBuildingOrBuildingPart(cityModel, (IfcBuilding)ifcObjectDefinition, citygml.createBuilding());
+					if(building != null) {
+						site.addGroupMember(citygml.createCityObjectGroupMember(building));
+					}
+				}
+				else if(ifcObjectDefinition instanceof IfcSite) {
+					CityObjectGroup subSite = buildSite(cityModel, (IfcSite)ifcObjectDefinition);
+					if(site != null) {
+						site.addGroupMember(citygml.createCityObjectGroupMember(subSite));
+					}
+				}
+				else {
+					//TODO: Handle rooms at this level
+					LOGGER.warn("Unhandled object in site: " + ifcObjectDefinition);
+				}
+			}
+		}		
+		
+		return site;
+	}
+
+	private <T extends AbstractBuilding> T buildBuildingOrBuildingPart(CityModel cityModel, IfcBuilding ifcBuilding, T abstractBuilding) throws SerializerException {
+		setName(abstractBuilding.getName(), ifcBuilding.getName());
+		setGlobalId(abstractBuilding, ifcBuilding);
+
+		// set address
+		IfcPostalAddress ifcBuildingAddress = ifcBuilding.getBuildingAddress();
+		if (ifcBuildingAddress != null) {
+			abstractBuilding.addAddress(citygml.createAddressProperty(buildAddress(ifcBuildingAddress)));
+		}
+		
+		// Handle all products on this level
+		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcBuilding.getContainsElements()) {
+			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
+				LOGGER.warn("Unhandled product in building or buildingpart: " + ifcProduct);
+			}
+		}
+				
+		// Continue with the spatial decomposition
+		CityObjectGroup buildingStoreys = null;
+				
+		for (IfcRelDecomposes ifcRelDecomposes : ifcBuilding.getIsDecomposedBy()) {
+			for (IfcObjectDefinition ifcObjectDefinition : ifcRelDecomposes.getRelatedObjects()) {
+				if (ifcObjectDefinition instanceof IfcBuildingStorey) {
+					if(buildingStoreys == null) {
+						buildingStoreys = citygml.createCityObjectGroup();
+						buildingStoreys.setClazz("building storeys");
+						buildingStoreys.setGroupParent(citygml.createCityObjectGroupParent(hrefTo(abstractBuilding)));
+						cityModel.addCityObjectMember(citygml.createCityObjectMember(buildingStoreys));
+					}
+					
+					buildBuildingStorey(buildingStoreys, abstractBuilding, (IfcBuildingStorey)ifcObjectDefinition);
+				}
+				else if (ifcObjectDefinition instanceof IfcBuilding) {
+					BuildingPart buildingPart = buildBuildingOrBuildingPart(cityModel, (IfcBuilding)ifcObjectDefinition, citygml.createBuildingPart());
+					abstractBuilding.addConsistsOfBuildingPart(citygml.createBuildingPartProperty(buildingPart));
+				}
+				else {
+					LOGGER.warn("Unhandled building or builingpart decomposition: " + ifcObjectDefinition);
+				}
+			}
+		}
+				
+		return abstractBuilding;
+	}
+		
+	private Address buildAddress(IfcPostalAddress ifcBuildingAddress) {
+		Address address = citygml.createAddress();
+		//AddressDetails details = xal.createAddressDetails();
+		//TODO: Really create the address here
+		return address;
+	}
+
+	private void buildBuildingStorey(CityObjectGroup buildingStoreys, AbstractBuilding abstractBuilding, IfcBuildingStorey ifcBuildingStorey) throws SerializerException {
+		System.out.println("BuildingStorey: " + ifcBuildingStorey);
+		
+		CityObjectGroup buildingSeparation = citygml.createCityObjectGroup();
+		buildingSeparation.setClazz("building separation");
+		buildingSeparation.addFunction("lod4Strorey");
+		setName(buildingSeparation.getName(), ifcBuildingStorey.getName());
+		setGlobalId(buildingSeparation, ifcBuildingStorey);
+				
+		buildingStoreys.addGroupMember(citygml.createCityObjectGroupMember(buildingSeparation));
+
+		// Loop through spaces (spacial structure)
+		for (IfcRelDecomposes ifcRelDecomposes : ifcBuildingStorey.getIsDecomposedBy()) {
+			for (IfcObjectDefinition ifcObjectDefinition : ifcRelDecomposes.getRelatedObjects()) {
+				if (ifcObjectDefinition instanceof IfcSpace) {
+					IfcSpace ifcSpace = (IfcSpace) ifcObjectDefinition;
+					Room room = buildRoom(buildingSeparation, ifcSpace);
+				}
+				else {
+					System.out.println("- " + ifcObjectDefinition + " (Spacial Structure)");
+				}
+			}
+		}
+
+		// Loop trough the products
+		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcBuildingStorey.getContainsElements()) {
+			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
+				//processBoundary(building, createFakeRoom(building), ifcProduct, null);
+				// TODO: Handle products here
+				
+				if(ifcProduct instanceof IfcSlab) {
+					IfcSlab ifcSlab = (IfcSlab) ifcProduct;
+					
+					if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.FLOOR) {
+						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createFloorSurface());
+						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+					}
+					else if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.ROOF) {
+						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createRoofSurface());
+						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+					}					
+					else if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.BASESLAB || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.LANDING) {
+						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createGroundSurface());
+						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+					}										
+				}
+				else if(ifcProduct instanceof IfcWall) {
+					AbstractBoundarySurface surface;
+					
+					if(getPropertySingleValue(ifcProduct, "Pset_WallCommon", "IsExternal", true)) {
+						surface = buildBoundarySurface(ifcProduct, citygml.createWallSurface());
+					}
+					else {
+						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
+					}
+										
+					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));										
+				}
+				else if(ifcProduct instanceof IfcColumn) {
+					if(getPropertySingleValue(ifcProduct, "Pset_ColumnCommon", "IsExternal", false)) {
+						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
+						buildingInstallation.addFunction("1050");
+						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
+					}
+					else {
+						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
+						intBuildingInstallation.addFunction("1050");
+						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
+					}
+				}
+				else if(ifcProduct instanceof IfcCurtainWall) {
+					// TODO: Add information to mark this as a CurtainWall in CityGML
+					System.out.println("!!!!!!!!!!!!!!! WallCurtainCode is running");
+					
+					AbstractBoundarySurface surface;
+					
+					if(getPropertySingleValue(ifcProduct, "Pset_CurtainWallCommon", "IsExternal", true)) {
+						surface = buildBoundarySurface(ifcProduct, citygml.createWallSurface());
+					}
+					else {
+						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
+					}
+					
+					standardMaterials.assignGlass(surface.getLod4MultiSurface().getGeometry());
+								
+					System.out.println("Surface" + surface.getLod4MultiSurface().getGeometry().getSurfaceMember().size());
+					
+					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));										
+				}
+				else {
+					System.out.println("- " + ifcProduct + " (Product)");
+				}
+			}
+		}	
+		
+		System.out.println("End BuildingStorey");
+	}
+	
+	/**
+	 * Retreivee a property from an IfcObject.
+	 * @param propertySetName
+	 * @param propertyName
+	 * @return
+	 * TODO: Determine Exception class for mismatched property class
+	 */
+	private IfcValue getPropertySingleValue(IfcObject ifcObject, String propertySetName, String propertyName) {
+		for(IfcRelDefines ifcRelDefines : ifcObject.getIsDefinedBy()) {
+			if(ifcRelDefines instanceof IfcRelDefinesByProperties) {
+				IfcPropertySetDefinition ifcPropertySetDefinition = ((IfcRelDefinesByProperties)ifcRelDefines).getRelatingPropertyDefinition();
+				if(ifcPropertySetDefinition instanceof IfcPropertySet && ifcPropertySetDefinition.getName().equals(propertySetName)) {
+					IfcPropertySet ifcPropertySet = (IfcPropertySet) ifcPropertySetDefinition;
+					
+					for(IfcProperty ifcProperty : ifcPropertySet.getHasProperties()) {
+						if(ifcProperty.getName().equals(propertyName)) {
+							if(!(ifcProperty instanceof IfcPropertySingleValue)) throw new RuntimeException("PropertySingleValue expected");
+							return ((IfcPropertySingleValue)ifcProperty).getNominalValue();							
+						}
+					}
+				}
+			}
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Returns the result of a boolean property. If the property does not exists the defaultValue will be returned.
+	 * @param ifcObject
+	 * @param propertySetName
+	 * @param propertyName
+	 * @return
+	 */
+	private boolean getPropertySingleValue(IfcObject ifcObject, String propertySetName, String propertyName, boolean defaultValue) {
+		IfcValue ifcValue = getPropertySingleValue(ifcObject, propertySetName, propertyName);
+		if(ifcValue == null) {
+			return defaultValue;
+		}
+		else if(ifcValue instanceof IfcBoolean) {
+			return ((IfcBoolean)ifcValue).getWrappedValue() == Tristate.TRUE; 
+		}
+		else {
+			throw new RuntimeException("IfcBoolean property expected");
+		}
+	}
+
+	private Room buildRoom(CityObjectGroup buildingSeparation, IfcSpace ifcSpace) {
+		System.out.println("Room: " + ifcSpace);
+		
+		for (IfcRelDecomposes ifcRelDecomposes : ifcSpace.getIsDecomposedBy()) {
+			for (IfcObjectDefinition ifcObjectDefinition : ifcRelDecomposes.getRelatedObjects()) {
+				System.out.println("* " + ifcObjectDefinition);
+			}
+		}
+		
+		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcSpace.getContainsElements()) {
+			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
+				System.out.println("- "  + ifcProduct);
+			}
+		}
+		
+		System.out.println("End Room");
+		
+		return null;
+	}
+
+	private <T extends AbstractCityObject> T buildBoundarySurface(IfcProduct ifcProduct, T cityObject) throws SerializerException {
+		setName(cityObject.getName(), ifcProduct.getName());
+		setGlobalId(cityObject, ifcProduct);
+		
+		MultiSurface multiSurface = gml.createMultiSurface();
+		setGeometry(multiSurface, ifcProduct);
+		
+		LinkedList<IfcObjectDefinition> decompose = new LinkedList<IfcObjectDefinition>(Collections.singletonList(ifcProduct));
+		while(!decompose.isEmpty()) {
+			for(IfcRelDecomposes ifcRelDecomposes: decompose.removeFirst().getIsDecomposedBy()) {
+				for(IfcObjectDefinition ifcObjectDef : ifcRelDecomposes.getRelatedObjects()) {
+					setGeometry(multiSurface, ifcObjectDef);
+					decompose.add(ifcObjectDef);
+				}
+			}
+		}
+		
+		MultiSurfaceProperty multiSurfaceProperty = gml.createMultiSurfaceProperty(multiSurface);
+		try {
+			if(PropertyUtils.isWriteable(cityObject, "lod4MultiSurface")) {
+				PropertyUtils.setProperty(cityObject, "lod4MultiSurface", multiSurfaceProperty);
+			}
+			else {
+				PropertyUtils.setProperty(cityObject, "lod4Geometry", multiSurfaceProperty);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+				
+		return cityObject;
+	}
+	
+	public boolean originalWriteDelMe(OutputStream out) throws SerializerException {
 		if (getMode() == Mode.BODY) {
+			try {
+				ifcEngine = getPluginManager().requireIfcEngine().createIfcEngine();
+			} catch (PluginException e) {
+				throw new SerializerException(e);
+			}
 			CityModel cityModel = citygml.createCityModel();
-			cityModel.setName(createNameList(getModel().getName()));
+			cityModel.setName(createCodeList(getModel().getName()));
 			JAXBBuilder builder = null;
 			try {
 				builder = ctx.createJAXBBuilder(getClass().getClassLoader());
-			} catch (JAXBException e) {
-				LOGGER.error("", e);
+			} catch (JAXBException e1) {
+				e1.printStackTrace();
 			}
 			for (IfcProject ifcProject : getModel().getAll(IfcProject.class)) {
 				for (IfcRelDecomposes ifcRelDecomposes : ifcProject.getIsDecomposedBy()) {
@@ -189,29 +674,21 @@ public class CityGmlSerializer extends EmfSerializer {
 					}
 				}
 			}
-			for (EObject eObject : model.getValues()) {
-				if (eObject instanceof IfcProduct) {
-					if (!convertedObjects.containsKey(eObject)) {
-						System.out.println("Not converted: " + eObject);
-					}
-				}
-			}
 			try {
 				CityGMLOutputFactory outputFactory = builder.createCityGMLOutputFactory(CityGMLVersion.v1_0_0);
 				PrintWriter writer = new PrintWriter(out);
 				CityGMLWriter cityGmlWriter = outputFactory.createCityGMLWriter(writer);
 
 				cityGmlWriter.setPrefixes(CityGMLVersion.v1_0_0);
-				cityGmlWriter.setWriteEncoding(true);
 				cityGmlWriter.setSchemaLocations(CityGMLVersion.v1_0_0);
 				cityGmlWriter.setIndentString("  ");
 				cityGmlWriter.write(cityModel);
 				cityGmlWriter.close();
 				writer.flush();
 			} catch (CityGMLReadException e) {
-				LOGGER.error("", e);
+				e.printStackTrace();
 			} catch (CityGMLWriteException e) {
-				LOGGER.error("", e);
+				e.printStackTrace();
 			}
 			setMode(Mode.FINISHED);
 			ifcEngine.close();
@@ -220,12 +697,6 @@ public class CityGmlSerializer extends EmfSerializer {
 			return false;
 		}
 		return false;
-	}
-
-	private List<Code> createNameList(String string) {
-		ArrayList<Code> arrayList = new ArrayList<Code>();
-		arrayList.add(createName(string));
-		return arrayList;
 	}
 
 	private void processBuilding(CityModel cityModel, IfcBuilding ifcBuilding) throws SerializerException {
@@ -258,17 +729,6 @@ public class CityGmlSerializer extends EmfSerializer {
 		}
 	}
 
-	private void setGlobalId(AbstractCityObject cityObject, IfcRoot ifcRoot) {
-		if (ifcRoot != null && ifcRoot.getGlobalId() != null && ifcRoot.getGlobalId().getWrappedValue() != null) {
-			GlobalIdType globalId = new GlobalIdType();
-			globalId.setValue(ifcRoot.getGlobalId().getWrappedValue());
-			for (Element element : globalId.get_ADEComponent()) {
-				ADEComponent adeComponent = new ADEComponent(element);
-				cityObject.addGenericApplicationPropertyOfCityObject(adeComponent);
-			}
-		}
-	}
-
 	private void processStorey(Building building, IfcBuildingStorey ifcBuildingStorey) throws SerializerException {
 		for (IfcRelDecomposes ifcRelDecomposes : ifcBuildingStorey.getIsDecomposedBy()) {
 			for (IfcObjectDefinition ifcObjectDefinition : ifcRelDecomposes.getRelatedObjects()) {
@@ -283,12 +743,12 @@ public class CityGmlSerializer extends EmfSerializer {
 				if (!convertedObjects.containsKey(ifcProduct)) {
 					Room room = createFakeRoom(building);
 					processBoundary(building, room, ifcProduct, null);
-					if (ifcProduct instanceof IfcSpace) {
-						IfcSpace ifcSpace = (IfcSpace) ifcProduct;
-						processSpace(building, ifcSpace);
-					} else if (ifcProduct instanceof IfcSlab) {
-						convertSlab(building, room, (IfcSlab) ifcProduct);
-					}
+					// if (ifcProduct instanceof IfcSpace) {
+					// IfcSpace ifcSpace = (IfcSpace) ifcProduct;
+					// processSpace(building, ifcSpace);
+					// } else {
+					// System.out.println("4b: " + ifcProduct);
+					// }
 				}
 			}
 		}
@@ -342,36 +802,29 @@ public class CityGmlSerializer extends EmfSerializer {
 		// || ifcProduct instanceof IfcSlab) {
 		// // Do nothing, because it should already have been converted
 		if (ifcProduct instanceof IfcStair) {
-			// List<Double> coordinates = null;
-			//
-			// StairType stairType = xbuilding.createStairType();
-			// MultiSurfacePropertyType multiSurfacePropertyType = new
-			// MultiSurfacePropertyType();
-			// MultiSurfaceType multiSurfaceType = new MultiSurfaceType();
-			// SurfacePropertyType surfacePropertyType = new
-			// SurfacePropertyType();
-			// Set<SurfaceProperty> geometry = getGeometry(ifcProduct);
-			// PolygonType polygonType = new PolygonType();
-			// LinearRingPropertyType linearRingProperty =
-			// gmlObjectFactory.createLinearRingPropertyType();
-			//
-			// DirectPositionListType posList =
-			// gmlObjectFactory.createDirectPositionListType();
-			// posList.setValue(coordinates);
-			// posList.setSrsDimension(BigInteger.valueOf(3));
-			// LinearRingType linearRingType = new LinearRingType();
-			// linearRingType.setPosList(posList);
-			// linearRingProperty.setLinearRing(linearRingType);
-			//
-			// //
-			// polygonType.setExterior(gmlObjectFactory.createExterior(linearRingProperty));
-			// // Compile error, LinearRingPropertyType is not a subtype of
-			// AbstractRingPropertyType
-			// surfacePropertyType.set_Surface(gmlObjectFactory.createPolygon(polygonType));
-			// multiSurfaceType.getSurfaceMember().add(surfacePropertyType);
-			// multiSurfacePropertyType.setMultiSurface(multiSurfaceType);
-			// stairType.setLod4MultiSurface(multiSurfacePropertyType);
-			// return stairType.get_ADEComponent();
+//			List<Double> coordinates = null;
+//
+//			StairType stairType = xbuilding.createStairType();
+//			MultiSurfacePropertyType multiSurfacePropertyType = new MultiSurfacePropertyType();
+//			MultiSurfaceType multiSurfaceType = new MultiSurfaceType();
+//			SurfacePropertyType surfacePropertyType = new SurfacePropertyType();
+//			Set<SurfaceProperty> geometry = getGeometry(ifcProduct);
+//			PolygonType polygonType = new PolygonType();
+//			LinearRingPropertyType linearRingProperty = gmlObjectFactory.createLinearRingPropertyType();
+//			
+//			DirectPositionListType posList = gmlObjectFactory.createDirectPositionListType();
+//			posList.setValue(coordinates);
+//			posList.setSrsDimension(BigInteger.valueOf(3));
+//			LinearRingType linearRingType = new LinearRingType();
+//			linearRingType.setPosList(posList);
+//			linearRingProperty.setLinearRing(linearRingType);
+//
+////			polygonType.setExterior(gmlObjectFactory.createExterior(linearRingProperty)); // Compile error, LinearRingPropertyType is not a subtype of AbstractRingPropertyType
+//			surfacePropertyType.set_Surface(gmlObjectFactory.createPolygon(polygonType));
+//			multiSurfaceType.getSurfaceMember().add(surfacePropertyType);
+//			multiSurfacePropertyType.setMultiSurface(multiSurfaceType);
+//			stairType.setLod4MultiSurface(multiSurfacePropertyType);
+//			return stairType.get_ADEComponent();
 		}
 		// } else if (ifcProduct instanceof IfcRailing) {
 		// RailingType railing = new RailingType();
@@ -424,19 +877,17 @@ public class CityGmlSerializer extends EmfSerializer {
 		// beam.setGlobalId(ifcProduct.getGlobalId());
 		// return beam;
 		else if (ifcProduct instanceof IfcOpeningElement) {
-			// OpeningElementType openingElement = new OpeningElementType();
-			// MultiSurfaceProperty openingElementMSP =
-			// gml.createMultiSurfaceProperty();
-			// MultiSurface stairMs = gml.createMultiSurface();
-			// setGeometry(stairMs, ifcProduct);
-			// openingElementMSP.setMultiSurface(stairMs);
-			// openingElement.setLod4MultiSurface((MultiSurfacePropertyType)
-			// openingElementMSP);
+//			OpeningElementType openingElement = new OpeningElementType();
+//			MultiSurfaceProperty openingElementMSP = gml.createMultiSurfaceProperty();
+//			MultiSurface stairMs = gml.createMultiSurface();
+//			setGeometry(stairMs, ifcProduct);
+//			openingElementMSP.setMultiSurface(stairMs);
+//			openingElement.setLod4MultiSurface((MultiSurfacePropertyType) openingElementMSP);
 			// openingElement.setLod4MultiSurface(openingElementMSP);
 			// setName(openingElement.getName(), ifcProduct.getName());
 			// setGlobalId(openingElement, ifcProduct);
-			// ifcProduct.setGlobalId(ifcProduct.getGlobalId());
-			// return openingElement.get_ADEComponent();
+//			ifcProduct.setGlobalId(ifcProduct.getGlobalId());
+//			return openingElement.get_ADEComponent();
 		}
 		return null;
 	}
@@ -514,7 +965,17 @@ public class CityGmlSerializer extends EmfSerializer {
 				}
 			}
 		} else if (ifcElement instanceof IfcSlab) {
-			convertSlab(building, room, (IfcSlab) ifcElement);
+			if (!convertedObjects.containsKey(ifcElement)) {
+				IfcSlab ifcSlab = (IfcSlab) ifcElement;
+				if (ifcSlab.getPredefinedType() == IfcSlabTypeEnum.ROOF) {
+					RoofSurface roofSurface = createRoof(building, ifcSlab);
+					convertedObjects.put(ifcElement, roofSurface);
+				} else if (ifcSlab.getPredefinedType() == IfcSlabTypeEnum.FLOOR || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.BASESLAB
+						|| ifcSlab.getPredefinedType() == IfcSlabTypeEnum.LANDING || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.NULL) {
+					FloorSurface floorSurface = createFloor(room, ifcElement, ifcSlab);
+					convertedObjects.put(ifcElement, floorSurface);
+				}
+			}
 		} else if (ifcElement instanceof IfcRoof) {
 			if (!convertedObjects.containsKey(ifcElement)) {
 				RoofSurface roofSurface = createRoof(building, ifcElement);
@@ -528,7 +989,10 @@ public class CityGmlSerializer extends EmfSerializer {
 					room.addGenericADEComponent(new ADEComponent(element));
 				}
 			}
-		} else if (ifcElement instanceof IfcColumn) {
+		} else if (ifcElement instanceof IfcColumn) {		
+			BuildingInstallation column = createColumn(ifcElement);
+			building.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(column));
+			convertedObjects.put(ifcElement, column);
 			// List<Element> processProduct = processProduct(ifcElement);
 			// if (processProduct != null) {
 			// room.addGenericApplicationPropertyOfRoom(processProduct);
@@ -536,21 +1000,18 @@ public class CityGmlSerializer extends EmfSerializer {
 		} else if (ifcElement == null || ifcElement instanceof IfcWindow || ifcElement instanceof IfcDoor || ifcElement instanceof IfcVirtualElement) {
 			// ignore
 		} else if (ifcElement instanceof IfcFurnishingElement) {
-			// BuildingFurniture buildingFurniture =
-			// citygml.createBuildingFurniture();
-			// GeometryProperty createGeometryProperty =
-			// gml.createGeometryProperty();
-			// MultiSurface createMultiSurface = gml.createMultiSurface();
-			// setGeometry(createMultiSurface, ifcElement);
-			// createGeometryProperty.setGeometry(createMultiSurface);
-			// buildingFurniture.setLod4Geometry(createGeometryProperty);
-			// InteriorFurnitureProperty ifp =
-			// citygml.createInteriorFurnitureProperty();
-			// ifp.setObject(buildingFurniture);
-			// setName(buildingFurniture.getName(), ifcElement.getName());
-			// setGlobalId(buildingFurniture, ifcElement);
-			// room.addInteriorFurniture(ifp);
-			// convertedObjects.put(ifcElement, buildingFurniture);
+//			BuildingFurniture buildingFurniture = citygml.createBuildingFurniture();
+//			GeometryProperty createGeometryProperty = gml.createGeometryProperty();
+//			MultiSurface createMultiSurface = gml.createMultiSurface();
+//			setGeometry(createMultiSurface, ifcElement);
+//			createGeometryProperty.setGeometry(createMultiSurface);
+//			buildingFurniture.setLod4Geometry(createGeometryProperty);
+//			InteriorFurnitureProperty ifp = citygml.createInteriorFurnitureProperty();
+//			ifp.setObject(buildingFurniture);
+//			setName(buildingFurniture.getName(), ifcElement.getName());
+//			setGlobalId(buildingFurniture, ifcElement);
+//			room.addInteriorFurniture(ifp);
+//			convertedObjects.put(ifcElement, buildingFurniture);
 		} else if (ifcElement instanceof IfcFlowTerminal) {
 			// FlowTerminal flowTerminal = new FlowTerminal();
 			// setName(flowTerminal.getName(), ifcElement.getName());
@@ -565,19 +1026,6 @@ public class CityGmlSerializer extends EmfSerializer {
 			// setGlobalId(flowTerminal, ifcElement);
 			// flowTerminal.setGlobalId(ifcElement.getGlobalId());
 			// convertedObjects.put(ifcElement, flowTerminal);
-		}
-	}
-
-	private void convertSlab(Building building, Room room, IfcSlab ifcSlab) throws SerializerException {
-		if (!convertedObjects.containsKey(ifcSlab)) {
-			if (ifcSlab.getPredefinedType() == IfcSlabTypeEnum.ROOF) {
-				RoofSurface roofSurface = createRoof(building, ifcSlab);
-				convertedObjects.put(ifcSlab, roofSurface);
-			} else if (ifcSlab.getPredefinedType() == IfcSlabTypeEnum.FLOOR || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.BASESLAB
-					|| ifcSlab.getPredefinedType() == IfcSlabTypeEnum.LANDING || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.NULL) {
-				FloorSurface floorSurface = createFloor(room, ifcSlab, ifcSlab);
-				convertedObjects.put(ifcSlab, floorSurface);
-			}
 		}
 	}
 
@@ -652,12 +1100,20 @@ public class CityGmlSerializer extends EmfSerializer {
 		return window;
 	}
 
-	private void setName(List<Code> name, String value) {
-		if (value != null && !value.trim().equals("")) {
-			name.add(createName(value));
-		}
-	}
-
+	private BuildingInstallation createColumn(IfcProduct ifcRelating) throws SerializerException {
+		BuildingInstallation column = citygml.createBuildingInstallation();
+		column.addFunction("1050");
+		
+		MultiSurface columnMultiSurface = gml.createMultiSurface();
+		setGeometry(columnMultiSurface, ifcRelating);
+		
+		column.setLod4Geometry(gml.createMultiSurfaceProperty(columnMultiSurface));		
+		
+		setName(column.getName(), ifcRelating.getName());
+		setGlobalId(column, ifcRelating);
+		return column;
+	}	
+	
 	private AddressProperty createAddress(IfcPostalAddress ifcBuildingAddress) {
 		Address address = citygml.createAddress();
 		XalAddressProperty xalAddressProperty = citygml.createXalAddressProperty();
@@ -668,46 +1124,37 @@ public class CityGmlSerializer extends EmfSerializer {
 		addressProperty.setObject(address);
 		return addressProperty;
 	}
-
+	
 	private void setGeometry(MultiSurface ms, IfcRoot ifcRootObject) throws SerializerException {
 		try {
 			IfcEngineInstance instance = ifcEngineModel.getInstanceFromExpressId((int) ifcRootObject.getOid());
 			IfcEngineInstanceVisualisationProperties instanceInModelling = instance.getVisualisationProperties();
 			for (int i = instanceInModelling.getStartIndex(); i < instanceInModelling.getPrimitiveCount() * 3 + instanceInModelling.getStartIndex(); i += 3) {
-				int i1 = geometry.getIndex(i);
-				int i2 = geometry.getIndex(i + 1);
-				int i3 = geometry.getIndex(i + 2);
-				ms.addSurfaceMember(createSurfaceProperty(
-						gml,
-						Arrays.asList(new Double[] { (double) geometry.getVertex(i1 * 3), (double) geometry.getVertex(i1 * 3 + 1), (double) geometry.getVertex(i1 * 3 + 2),
-								(double) geometry.getVertex(i3 * 3), (double) geometry.getVertex(i3 * 3 + 1), (double) geometry.getVertex(i3 * 3 + 2),
-								(double) geometry.getVertex(i2 * 3), (double) geometry.getVertex(i2 * 3 + 1), (double) geometry.getVertex(i2 * 3 + 2),
-								(double) geometry.getVertex(i1 * 3), (double) geometry.getVertex(i1 * 3 + 1), (double) geometry.getVertex(i1 * 3 + 2) })));
+				int i1 = geometry.getIndex(i) * 3;
+				int i2 = geometry.getIndex(i + 1) * 3;
+				int i3 = geometry.getIndex(i + 2) * 3;
+				
+				DirectPositionList posList = gml.createDirectPositionList();
+				posList.setSrsDimension(3);
+				posList.setValue(Arrays.asList(new Double[] { 
+						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2),
+						(double) geometry.getVertex(i3 + 0), (double) geometry.getVertex(i3 + 1), (double) geometry.getVertex(i3 + 2),
+						(double) geometry.getVertex(i2 + 0), (double) geometry.getVertex(i2 + 1), (double) geometry.getVertex(i2 + 2),
+						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2) 
+				}));
+				
+				LinearRing linearRing = gml.createLinearRing();
+				linearRing.setPosList(posList);
+				
+				Polygon polygon = gml.createPolygon();
+				polygon.setExterior(gml.createExterior(linearRing));
+								
+				ms.addSurfaceMember(gml.createSurfaceProperty(polygon));			
 			}
 		} catch (IfcEngineException e) {
 			throw new SerializerException("IfcEngineException", e);
 		} catch (Exception e) {
 			LOGGER.error("", e);
 		}
-	}
-
-	private SurfaceProperty createSurfaceProperty(GMLFactory gml, List<Double> points) {
-		Polygon polygon = gml.createPolygon();
-
-		Exterior exterior = gml.createExterior();
-		polygon.setExterior(exterior);
-
-		LinearRing linearRing = gml.createLinearRing();
-		exterior.setRing(linearRing);
-
-		DirectPositionList posList = gml.createDirectPositionList();
-		posList.setValue(points);
-		posList.setSrsDimension(3);
-		linearRing.setPosList(posList);
-
-		SurfaceProperty surfaceProperty = gml.createSurfaceProperty();
-		surfaceProperty.setGeometry(polygon);
-
-		return surfaceProperty;
 	}
 }
