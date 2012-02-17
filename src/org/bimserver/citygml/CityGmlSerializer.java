@@ -25,9 +25,11 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.xml.bind.JAXBException;
@@ -47,6 +49,7 @@ import org.bimserver.models.ifc2x3.IfcInternalOrExternalEnum;
 import org.bimserver.models.ifc2x3.IfcObject;
 import org.bimserver.models.ifc2x3.IfcObjectDefinition;
 import org.bimserver.models.ifc2x3.IfcOpeningElement;
+import org.bimserver.models.ifc2x3.IfcPlate;
 import org.bimserver.models.ifc2x3.IfcPostalAddress;
 import org.bimserver.models.ifc2x3.IfcProduct;
 import org.bimserver.models.ifc2x3.IfcProject;
@@ -93,6 +96,7 @@ import org.citygml4j.factory.XALFactory;
 import org.citygml4j.impl.citygml.generics.DoubleAttributeImpl;
 import org.citygml4j.model.citygml.ade.ADEComponent;
 import org.citygml4j.model.citygml.appearance.Appearance;
+import org.citygml4j.model.citygml.appearance.Color;
 import org.citygml4j.model.citygml.appearance.X3DMaterial;
 import org.citygml4j.model.citygml.building.AbstractBoundarySurface;
 import org.citygml4j.model.citygml.building.AbstractBuilding;
@@ -122,6 +126,7 @@ import org.citygml4j.model.gml.feature.AbstractFeature;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurface;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurfaceProperty;
 import org.citygml4j.model.gml.geometry.complexes.CompositeSurface;
+import org.citygml4j.model.gml.geometry.primitives.AbstractSurface;
 import org.citygml4j.model.gml.geometry.primitives.DirectPositionList;
 import org.citygml4j.model.gml.geometry.primitives.LinearRing;
 import org.citygml4j.model.gml.geometry.primitives.Polygon;
@@ -137,24 +142,6 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
 
 public class CityGmlSerializer extends EmfSerializer {
-	class StandardMaterials {
-		private X3DMaterial glass;
-		
-		StandardMaterials(CityModel cityModel) {
-			Appearance appearance = citygml.createAppearance();
-			cityModel.addAppearanceMember(citygml.createAppearanceMember(appearance));
-			
-			glass = citygml.createX3DMaterial();
-			glass.setDiffuseColor(citygml.createColor(0.7, 0.7, 1.0));
-			glass.setTransparency(0.9);		
-			appearance.addSurfaceDataMember(citygml.createSurfaceDataProperty(glass));			
-		}
-
-		public void assignGlass(MultiSurface multiSurface) {
-			glass.addTarget(hrefTo(multiSurface));
-		}
-	}
-	
 	private static final Logger LOGGER = LoggerFactory.getLogger(CityGmlSerializer.class);
 	private IfcEngine ifcEngine;
 	private GMLFactory gml;
@@ -164,9 +151,7 @@ public class CityGmlSerializer extends EmfSerializer {
 	private CityGMLContext ctx;
 	private IfcEngineModel ifcEngineModel;
 	private IfcEngineGeometry geometry;
-	private StandardMaterials standardMaterials;
-	
-	
+	private MaterialManager materialManager;	
 
 	@Override
 	public void init(IfcModelInterface ifcModel, ProjectInfo projectInfo, PluginManager pluginManager, IfcEngine ifcEngine) throws SerializerException {
@@ -217,6 +202,7 @@ public class CityGmlSerializer extends EmfSerializer {
 		}
 	}
 	
+	// TODO: Put in utility class (also used in material manager)
 	private String hrefTo(AbstractGML abstractGML) {
 		if(abstractGML.getId() == null) {
 			abstractGML.setId(UUID.randomUUID().toString());
@@ -315,7 +301,7 @@ public class CityGmlSerializer extends EmfSerializer {
 		CityModel cityModel = citygml.createCityModel();
 		cityModel.setName(createCodeList(ifcModel.getName()));
 		
-		standardMaterials = new StandardMaterials(cityModel);
+		materialManager = new MaterialManager(cityModel, citygml);
 
 		for(IfcProject ifcProject : getModel().getAll(IfcProject.class)) {
 			buildCityModel(cityModel, ifcProject);
@@ -525,9 +511,7 @@ public class CityGmlSerializer extends EmfSerializer {
 					else {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
 					}
-					
-					standardMaterials.assignGlass(surface.getLod4MultiSurface().getGeometry());
-								
+													
 					System.out.println("Surface" + surface.getLod4MultiSurface().getGeometry().getSurfaceMember().size());
 					
 					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
@@ -616,8 +600,9 @@ public class CityGmlSerializer extends EmfSerializer {
 		MultiSurface multiSurface = gml.createMultiSurface();
 		
 		{
-			CompositeSurface compositeSurface = gml.createCompositeSurface();
+			CompositeSurface compositeSurface = gml.createCompositeSurface();			
 			setGeometry(compositeSurface, ifcProduct);
+			materialManager.assign(compositeSurface, ifcProduct);
 			multiSurface.addSurfaceMember(gml.createSurfaceProperty(compositeSurface));
 		}
 		
@@ -627,6 +612,7 @@ public class CityGmlSerializer extends EmfSerializer {
 				for(IfcObjectDefinition ifcObjectDef : ifcRelDecomposes.getRelatedObjects()) {
 					CompositeSurface compositeSurface = gml.createCompositeSurface();
 					setGeometry(compositeSurface, ifcObjectDef);
+					materialManager.assign(compositeSurface, ifcObjectDef);
 					multiSurface.addSurfaceMember(gml.createSurfaceProperty(compositeSurface));
 					decompose.add(ifcObjectDef);
 				}
@@ -1134,39 +1120,14 @@ public class CityGmlSerializer extends EmfSerializer {
 	}
 	
 	private void setGeometry(MultiSurface ms, IfcRoot ifcRootObject) throws SerializerException {
-		try {
-			IfcEngineInstance instance = ifcEngineModel.getInstanceFromExpressId((int) ifcRootObject.getOid());
-			IfcEngineInstanceVisualisationProperties instanceInModelling = instance.getVisualisationProperties();
-			for (int i = instanceInModelling.getStartIndex(); i < instanceInModelling.getPrimitiveCount() * 3 + instanceInModelling.getStartIndex(); i += 3) {
-				int i1 = geometry.getIndex(i) * 3;
-				int i2 = geometry.getIndex(i + 1) * 3;
-				int i3 = geometry.getIndex(i + 2) * 3;
-				
-				DirectPositionList posList = gml.createDirectPositionList();
-				posList.setSrsDimension(3);
-				posList.setValue(Arrays.asList(new Double[] { 
-						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2),
-						(double) geometry.getVertex(i3 + 0), (double) geometry.getVertex(i3 + 1), (double) geometry.getVertex(i3 + 2),
-						(double) geometry.getVertex(i2 + 0), (double) geometry.getVertex(i2 + 1), (double) geometry.getVertex(i2 + 2),
-						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2) 
-				}));
-				
-				LinearRing linearRing = gml.createLinearRing();
-				linearRing.setPosList(posList);
-				
-				Polygon polygon = gml.createPolygon();
-				polygon.setExterior(gml.createExterior(linearRing));
-								
-				ms.addSurfaceMember(gml.createSurfaceProperty(polygon));			
-			}
-		} catch (IfcEngineException e) {
-			throw new SerializerException("IfcEngineException", e);
-		} catch (Exception e) {
-			LOGGER.error("", e);
-		}
+		setGeometry(ms, null, ifcRootObject);
 	}
 
 	private void setGeometry(CompositeSurface ms, IfcRoot ifcRootObject) throws SerializerException {
+		setGeometry(null, ms, ifcRootObject);
+	}
+	
+	private void setGeometry(MultiSurface ms1, CompositeSurface ms2, IfcRoot ifcRootObject) throws SerializerException {
 		try {
 			IfcEngineInstance instance = ifcEngineModel.getInstanceFromExpressId((int) ifcRootObject.getOid());
 			IfcEngineInstanceVisualisationProperties instanceInModelling = instance.getVisualisationProperties();
@@ -1189,8 +1150,13 @@ public class CityGmlSerializer extends EmfSerializer {
 				
 				Polygon polygon = gml.createPolygon();
 				polygon.setExterior(gml.createExterior(linearRing));
-								
-				ms.addSurfaceMember(gml.createSurfaceProperty(polygon));			
+							
+				if(ms1 != null) {
+					ms1.addSurfaceMember(gml.createSurfaceProperty(polygon));
+				}
+				else if(ms2 != null){
+					ms2.addSurfaceMember(gml.createSurfaceProperty(polygon));
+				}
 			}
 		} catch (IfcEngineException e) {
 			throw new SerializerException("IfcEngineException", e);
@@ -1198,4 +1164,5 @@ public class CityGmlSerializer extends EmfSerializer {
 			LOGGER.error("", e);
 		}
 	}
+	
 }
