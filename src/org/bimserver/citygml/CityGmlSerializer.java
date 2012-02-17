@@ -121,6 +121,7 @@ import org.citygml4j.model.gml.basicTypes.Code;
 import org.citygml4j.model.gml.feature.AbstractFeature;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurface;
 import org.citygml4j.model.gml.geometry.aggregates.MultiSurfaceProperty;
+import org.citygml4j.model.gml.geometry.complexes.CompositeSurface;
 import org.citygml4j.model.gml.geometry.primitives.DirectPositionList;
 import org.citygml4j.model.gml.geometry.primitives.LinearRing;
 import org.citygml4j.model.gml.geometry.primitives.Polygon;
@@ -613,13 +614,20 @@ public class CityGmlSerializer extends EmfSerializer {
 		setGlobalId(cityObject, ifcProduct);
 		
 		MultiSurface multiSurface = gml.createMultiSurface();
-		setGeometry(multiSurface, ifcProduct);
+		
+		{
+			CompositeSurface compositeSurface = gml.createCompositeSurface();
+			setGeometry(compositeSurface, ifcProduct);
+			multiSurface.addSurfaceMember(gml.createSurfaceProperty(compositeSurface));
+		}
 		
 		LinkedList<IfcObjectDefinition> decompose = new LinkedList<IfcObjectDefinition>(Collections.singletonList(ifcProduct));
 		while(!decompose.isEmpty()) {
 			for(IfcRelDecomposes ifcRelDecomposes: decompose.removeFirst().getIsDecomposedBy()) {
 				for(IfcObjectDefinition ifcObjectDef : ifcRelDecomposes.getRelatedObjects()) {
-					setGeometry(multiSurface, ifcObjectDef);
+					CompositeSurface compositeSurface = gml.createCompositeSurface();
+					setGeometry(compositeSurface, ifcObjectDef);
+					multiSurface.addSurfaceMember(gml.createSurfaceProperty(compositeSurface));
 					decompose.add(ifcObjectDef);
 				}
 			}
@@ -1126,6 +1134,39 @@ public class CityGmlSerializer extends EmfSerializer {
 	}
 	
 	private void setGeometry(MultiSurface ms, IfcRoot ifcRootObject) throws SerializerException {
+		try {
+			IfcEngineInstance instance = ifcEngineModel.getInstanceFromExpressId((int) ifcRootObject.getOid());
+			IfcEngineInstanceVisualisationProperties instanceInModelling = instance.getVisualisationProperties();
+			for (int i = instanceInModelling.getStartIndex(); i < instanceInModelling.getPrimitiveCount() * 3 + instanceInModelling.getStartIndex(); i += 3) {
+				int i1 = geometry.getIndex(i) * 3;
+				int i2 = geometry.getIndex(i + 1) * 3;
+				int i3 = geometry.getIndex(i + 2) * 3;
+				
+				DirectPositionList posList = gml.createDirectPositionList();
+				posList.setSrsDimension(3);
+				posList.setValue(Arrays.asList(new Double[] { 
+						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2),
+						(double) geometry.getVertex(i3 + 0), (double) geometry.getVertex(i3 + 1), (double) geometry.getVertex(i3 + 2),
+						(double) geometry.getVertex(i2 + 0), (double) geometry.getVertex(i2 + 1), (double) geometry.getVertex(i2 + 2),
+						(double) geometry.getVertex(i1 + 0), (double) geometry.getVertex(i1 + 1), (double) geometry.getVertex(i1 + 2) 
+				}));
+				
+				LinearRing linearRing = gml.createLinearRing();
+				linearRing.setPosList(posList);
+				
+				Polygon polygon = gml.createPolygon();
+				polygon.setExterior(gml.createExterior(linearRing));
+								
+				ms.addSurfaceMember(gml.createSurfaceProperty(polygon));			
+			}
+		} catch (IfcEngineException e) {
+			throw new SerializerException("IfcEngineException", e);
+		} catch (Exception e) {
+			LOGGER.error("", e);
+		}
+	}
+
+	private void setGeometry(CompositeSurface ms, IfcRoot ifcRootObject) throws SerializerException {
 		try {
 			IfcEngineInstance instance = ifcEngineModel.getInstanceFromExpressId((int) ifcRootObject.getOid());
 			IfcEngineInstanceVisualisationProperties instanceInModelling = instance.getVisualisationProperties();
