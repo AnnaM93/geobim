@@ -143,7 +143,6 @@ import org.w3c.dom.Element;
 
 public class CityGmlSerializer extends EmfSerializer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CityGmlSerializer.class);
-	private IfcEngine ifcEngine;
 	private GMLFactory gml;
 	private XALFactory xal;
 	private CityGMLFactory citygml;
@@ -166,7 +165,7 @@ public class CityGmlSerializer extends EmfSerializer {
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
 		try {
-			ifcEngine = getPluginManager().requireIfcEngine().createIfcEngine();
+			ifcEngine.init();
 			ifcEngineModel = ifcEngine.openModel(serializer.getBytes());
 			ifcEngineModel.setPostProcessing(true);
 			geometry = ifcEngineModel.finalizeModelling(ifcEngineModel.initializeModelling());
@@ -250,29 +249,23 @@ public class CityGmlSerializer extends EmfSerializer {
 	
 	@Override
 	public boolean write(OutputStream out) throws SerializerException {
-		if(getMode() == Mode.FINISHED) return false;
-				
 		if(getMode() == Mode.BODY) {
 			try {
 				CityModel cityModel = buildCityModel();
 				writeCityGML(cityModel, out);
 				
-				setMode(Mode.FINISHED);
 				return true;
 			} catch (Exception e) {
-				setMode(Mode.FINISHED);
 				throw new SerializerException(e);
 			} finally {
-				if(ifcEngine != null) {
-					ifcEngine.close();
-					ifcEngine = null;
-				}
+				setMode(Mode.FINISHED);
+				getIfcEngine().close();			
 			}
 		}
 		
 		return false;
 	}
-	
+		
 	/**
 	 * Write given citymodel to given OutputStream.
 	 */
