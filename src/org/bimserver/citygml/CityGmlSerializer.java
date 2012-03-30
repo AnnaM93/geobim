@@ -407,40 +407,29 @@ public class CityGmlSerializer extends EmfSerializer {
 		// Loop trough the products
 		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcBuildingStorey.getContainsElements()) {
 			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
-				//processBoundary(building, createFakeRoom(building), ifcProduct, null);
 				// TODO: Handle products here
+				AbstractBoundarySurface surface = null;
 				
 				if(ifcProduct instanceof IfcSlab) {
 					IfcSlab ifcSlab = (IfcSlab) ifcProduct;
 					
 					if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.FLOOR) {
-						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createFloorSurface());
-						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+						surface = buildBoundarySurface(ifcSlab, citygml.createFloorSurface());
 					}
 					else if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.ROOF) {
-						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createRoofSurface());
-						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+						surface = buildBoundarySurface(ifcSlab, citygml.createRoofSurface());
 					}					
 					else if(ifcSlab.getPredefinedType() == IfcSlabTypeEnum.BASESLAB || ifcSlab.getPredefinedType() == IfcSlabTypeEnum.LANDING) {
-						AbstractBoundarySurface surface = buildBoundarySurface(ifcSlab, citygml.createGroundSurface());
-						abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+						surface = buildBoundarySurface(ifcSlab, citygml.createGroundSurface());
 					}										
 				}
 				else if(ifcProduct instanceof IfcWall) {
-					AbstractBoundarySurface surface;
-					
 					if(getPropertySingleValue(ifcProduct, "Pset_WallCommon", "IsExternal", true)) {
 						surface = buildBoundarySurface(ifcProduct, citygml.createWallSurface());
 					}
 					else {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
 					}
-										
-					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
-					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));										
 				}
 				else if(ifcProduct instanceof IfcColumn) {
 					if(getPropertySingleValue(ifcProduct, "Pset_ColumnCommon", "IsExternal", false)) {
@@ -457,25 +446,25 @@ public class CityGmlSerializer extends EmfSerializer {
 					}
 				}
 				else if(ifcProduct instanceof IfcCurtainWall) {
-					// TODO: Add information to mark this as a CurtainWall in CityGML
-					System.out.println("!!!!!!!!!!!!!!! WallCurtainCode is running");
-					
-					AbstractBoundarySurface surface;
-					
+					// TODO: Add information to mark this as a CurtainWall in CityGML (does not exist)
 					if(getPropertySingleValue(ifcProduct, "Pset_CurtainWallCommon", "IsExternal", true)) {
 						surface = buildBoundarySurface(ifcProduct, citygml.createWallSurface());
 					}
 					else {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
 					}
-													
-					System.out.println("Surface" + surface.getLod4MultiSurface().getGeometry().getSurfaceMember().size());
-					
-					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
-					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));										
 				}
 				else {
-					System.out.println("- " + ifcProduct + " (Product)");
+					System.out.println("- unhandled " + ifcProduct + " (Product)");
+				}
+				
+				// We added a boundary surface, so let's add it and check for voids and add doors and windows, etc.
+				if(surface != null) {
+					// Adding it
+					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
+					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
+					
+					// TODO: Handle voids with contents
 				}
 			}
 		}	
