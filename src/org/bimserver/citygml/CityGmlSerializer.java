@@ -35,11 +35,15 @@ import org.apache.commons.beanutils.PropertyUtils;
 import org.bimserver.citygml.xbuilding.GlobalIdType;
 import org.bimserver.models.ifc2x3.IfcBoolean;
 import org.bimserver.models.ifc2x3.IfcBuilding;
+import org.bimserver.models.ifc2x3.IfcBuildingElement;
 import org.bimserver.models.ifc2x3.IfcBuildingStorey;
 import org.bimserver.models.ifc2x3.IfcColumn;
 import org.bimserver.models.ifc2x3.IfcCurtainWall;
+import org.bimserver.models.ifc2x3.IfcDoor;
+import org.bimserver.models.ifc2x3.IfcElement;
 import org.bimserver.models.ifc2x3.IfcObject;
 import org.bimserver.models.ifc2x3.IfcObjectDefinition;
+import org.bimserver.models.ifc2x3.IfcOpeningElement;
 import org.bimserver.models.ifc2x3.IfcPostalAddress;
 import org.bimserver.models.ifc2x3.IfcProduct;
 import org.bimserver.models.ifc2x3.IfcProject;
@@ -51,6 +55,8 @@ import org.bimserver.models.ifc2x3.IfcRelContainedInSpatialStructure;
 import org.bimserver.models.ifc2x3.IfcRelDecomposes;
 import org.bimserver.models.ifc2x3.IfcRelDefines;
 import org.bimserver.models.ifc2x3.IfcRelDefinesByProperties;
+import org.bimserver.models.ifc2x3.IfcRelFillsElement;
+import org.bimserver.models.ifc2x3.IfcRelVoidsElement;
 import org.bimserver.models.ifc2x3.IfcRoot;
 import org.bimserver.models.ifc2x3.IfcSite;
 import org.bimserver.models.ifc2x3.IfcSlab;
@@ -58,6 +64,7 @@ import org.bimserver.models.ifc2x3.IfcSlabTypeEnum;
 import org.bimserver.models.ifc2x3.IfcSpace;
 import org.bimserver.models.ifc2x3.IfcValue;
 import org.bimserver.models.ifc2x3.IfcWall;
+import org.bimserver.models.ifc2x3.IfcWindow;
 import org.bimserver.models.ifc2x3.Tristate;
 import org.bimserver.plugins.PluginException;
 import org.bimserver.plugins.PluginManager;
@@ -407,6 +414,14 @@ public class CityGmlSerializer extends EmfSerializer {
 		// Loop trough the products
 		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcBuildingStorey.getContainsElements()) {
 			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
+				System.out.println("* handeling " + ifcProduct + " (Product)");
+
+				// Skip any product that is used to fill up a void
+				if(isUsedAsVoidFilling(ifcProduct)) {
+					System.out.println("- Skipping product, used to fill a void");
+					continue;
+				}
+				
 				// TODO: Handle products here
 				AbstractBoundarySurface surface = null;
 				
@@ -465,6 +480,7 @@ public class CityGmlSerializer extends EmfSerializer {
 					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
 					
 					// TODO: Handle voids with contents
+					buildOpeningFillings(surface, ifcProduct);
 				}
 			}
 		}	
@@ -472,6 +488,39 @@ public class CityGmlSerializer extends EmfSerializer {
 		System.out.println("End BuildingStorey");
 	}
 	
+	private boolean isUsedAsVoidFilling(IfcProduct ifcProduct) {
+		if(!(ifcProduct instanceof IfcBuildingElement)) return false;
+		return !((IfcBuildingElement) ifcProduct).getFillsVoids().isEmpty();
+	}
+
+	/*
+	 * Mapping problem:
+	 * BuildingInstallation is not a boundary surface and can therefore have no openings. In IFC a column can have openings, in CityGML it can not.
+	 */
+	private void buildOpeningFillings(AbstractBoundarySurface surface, IfcProduct ifcProduct) throws SerializerException {
+		if(!(ifcProduct instanceof IfcBuildingElement)) return;
+		
+		System.out.println("Filling up openings!!!!");
+		IfcBuildingElement ifcBuildingElement = (IfcBuildingElement) ifcProduct;
+		
+		for(IfcRelVoidsElement ifcVoid : ifcBuildingElement.getHasOpenings()) {
+			IfcOpeningElement ifcOpeningElement = (IfcOpeningElement)ifcVoid.getRelatedOpeningElement();
+			System.out.println("* Found void " + ifcVoid);
+			for(IfcRelFillsElement ifcRelFillsElement : ifcOpeningElement.getHasFillings()) {
+				IfcElement ifcFilling = ifcRelFillsElement.getRelatedBuildingElement();
+				if(ifcFilling instanceof IfcDoor) { 
+					surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createDoor())));
+				}
+				else if(ifcFilling instanceof IfcWindow) {
+					surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createWindow())));
+				}
+				else {
+					System.out.println("** Found unknown filling " + ifcRelFillsElement.getRelatedBuildingElement());
+				}				
+			}
+		}
+	}
+
 	/**
 	 * Retreivee a property from an IfcObject.
 	 * @param propertySetName
