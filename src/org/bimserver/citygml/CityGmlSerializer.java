@@ -33,6 +33,7 @@ import javax.xml.bind.JAXBException;
 
 import org.apache.commons.beanutils.PropertyUtils;
 import org.bimserver.citygml.xbuilding.GlobalIdType;
+import org.bimserver.models.ifc2x3.IfcBeam;
 import org.bimserver.models.ifc2x3.IfcBoolean;
 import org.bimserver.models.ifc2x3.IfcBuilding;
 import org.bimserver.models.ifc2x3.IfcBuildingElement;
@@ -451,7 +452,7 @@ public class CityGmlSerializer extends EmfSerializer {
 					}
 					else {
 						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
-						intBuildingInstallation.addFunction("1050");
+						intBuildingInstallation.addFunction("7020");
 						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
 						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
 					}
@@ -463,6 +464,20 @@ public class CityGmlSerializer extends EmfSerializer {
 					}
 					else {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
+					}
+				}
+				else if(ifcProduct instanceof IfcBeam) {
+					if(getPropertySingleValue(ifcProduct, "Pset_BeamCommon", "IsExternal", false)) {
+						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
+						buildingInstallation.addFunction("1070"); // TODO: No good code for beams
+						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
+					}
+					else {
+						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
+						intBuildingInstallation.addFunction("1070"); // TODO: No good code for beams
+						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
 					}
 				}
 				else {
@@ -565,22 +580,18 @@ public class CityGmlSerializer extends EmfSerializer {
 	private Room buildRoom(CityObjectGroup buildingSeparation, IfcSpace ifcSpace) {
 		// TODO: Implement generating rooms
 		
-		System.out.println("Room: " + ifcSpace);
-		
 		for (IfcRelDecomposes ifcRelDecomposes : ifcSpace.getIsDecomposedBy()) {
 			for (IfcObjectDefinition ifcObjectDefinition : ifcRelDecomposes.getRelatedObjects()) {
-				System.out.println("* " + ifcObjectDefinition);
+				System.out.println("* buildRoom: " + ifcObjectDefinition);
 			}
 		}
 		
 		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcSpace.getContainsElements()) {
 			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
-				System.out.println("- "  + ifcProduct);
+				System.out.println("- buildRoom: "  + ifcProduct);
 			}
 		}
-		
-		System.out.println("End Room");
-		
+				
 		return null;
 	}
 
