@@ -388,8 +388,6 @@ public class CityGmlSerializer extends EmfSerializer {
 	}
 
 	private void buildBuildingStorey(CityObjectGroup buildingStoreys, AbstractBuilding abstractBuilding, IfcBuildingStorey ifcBuildingStorey) throws SerializerException {
-		System.out.println("BuildingStorey: " + ifcBuildingStorey);
-		
 		CityObjectGroup buildingSeparation = citygml.createCityObjectGroup();
 		buildingSeparation.setClazz("building separation");
 		buildingSeparation.addFunction("lod4Strorey");
@@ -406,7 +404,7 @@ public class CityGmlSerializer extends EmfSerializer {
 					buildRoom(buildingSeparation, ifcSpace);
 				}
 				else {
-					System.out.println("- " + ifcObjectDefinition + " (Spacial Structure)");
+					LOGGER.warn("Unknown spacial structure in building storey: " + ifcObjectDefinition);
 				}
 			}
 		}
@@ -414,11 +412,9 @@ public class CityGmlSerializer extends EmfSerializer {
 		// Loop trough the products
 		for (IfcRelContainedInSpatialStructure ifcRelContainedInSpatialStructure : ifcBuildingStorey.getContainsElements()) {
 			for (IfcProduct ifcProduct : ifcRelContainedInSpatialStructure.getRelatedElements()) {
-				System.out.println("* handeling " + ifcProduct + " (Product)");
-
 				// Skip any product that is used to fill up a void
 				if(isUsedAsVoidFilling(ifcProduct)) {
-					System.out.println("- Skipping product, used to fill a void");
+					// TODO: Did we skip anything that will never be added?
 					continue;
 				}
 				
@@ -470,22 +466,19 @@ public class CityGmlSerializer extends EmfSerializer {
 					}
 				}
 				else {
-					System.out.println("- unhandled " + ifcProduct + " (Product)");
+					LOGGER.warn("Unhandled product " + ifcProduct);
 				}
 				
-				// We added a boundary surface, so let's add it and check for voids and add doors and windows, etc.
+				// We added a boundary surface, so let's add it and check for voids and add doors and windows
 				if(surface != null) {
-					// Adding it
+					// Adding it to the citygml model
 					abstractBuilding.addBoundedBySurface(citygml.createBoundarySurfaceProperty(surface));
 					buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(surface)));
 					
-					// TODO: Handle voids with contents
 					buildOpeningFillings(surface, ifcProduct);
 				}
 			}
 		}	
-		
-		System.out.println("End BuildingStorey");
 	}
 	
 	private boolean isUsedAsVoidFilling(IfcProduct ifcProduct) {
@@ -498,14 +491,15 @@ public class CityGmlSerializer extends EmfSerializer {
 	 * BuildingInstallation is not a boundary surface and can therefore have no openings. In IFC a column can have openings, in CityGML it can not.
 	 */
 	private void buildOpeningFillings(AbstractBoundarySurface surface, IfcProduct ifcProduct) throws SerializerException {
-		if(!(ifcProduct instanceof IfcBuildingElement)) return;
+		if(!(ifcProduct instanceof IfcBuildingElement)) {
+			LOGGER.warn("Encountered a product that is not a building element.");
+			return;
+		}
 		
-		System.out.println("Filling up openings!!!!");
 		IfcBuildingElement ifcBuildingElement = (IfcBuildingElement) ifcProduct;
 		
 		for(IfcRelVoidsElement ifcVoid : ifcBuildingElement.getHasOpenings()) {
 			IfcOpeningElement ifcOpeningElement = (IfcOpeningElement)ifcVoid.getRelatedOpeningElement();
-			System.out.println("* Found void " + ifcVoid);
 			for(IfcRelFillsElement ifcRelFillsElement : ifcOpeningElement.getHasFillings()) {
 				IfcElement ifcFilling = ifcRelFillsElement.getRelatedBuildingElement();
 				if(ifcFilling instanceof IfcDoor) { 
@@ -515,7 +509,7 @@ public class CityGmlSerializer extends EmfSerializer {
 					surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createWindow())));
 				}
 				else {
-					System.out.println("** Found unknown filling " + ifcRelFillsElement.getRelatedBuildingElement());
+					LOGGER.warn("Found a filling of type I can not handle (not a door or window): " + ifcFilling);
 				}				
 			}
 		}
@@ -569,6 +563,8 @@ public class CityGmlSerializer extends EmfSerializer {
 	}
 
 	private Room buildRoom(CityObjectGroup buildingSeparation, IfcSpace ifcSpace) {
+		// TODO: Implement generating rooms
+		
 		System.out.println("Room: " + ifcSpace);
 		
 		for (IfcRelDecomposes ifcRelDecomposes : ifcSpace.getIsDecomposedBy()) {
