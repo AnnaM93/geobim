@@ -37,6 +37,7 @@ import org.bimserver.models.ifc2x3.IfcBeam;
 import org.bimserver.models.ifc2x3.IfcBoolean;
 import org.bimserver.models.ifc2x3.IfcBuilding;
 import org.bimserver.models.ifc2x3.IfcBuildingElement;
+import org.bimserver.models.ifc2x3.IfcBuildingElementProxy;
 import org.bimserver.models.ifc2x3.IfcBuildingStorey;
 import org.bimserver.models.ifc2x3.IfcColumn;
 import org.bimserver.models.ifc2x3.IfcCurtainWall;
@@ -140,6 +141,7 @@ public class CityGmlSerializer extends EmfSerializer {
 		product2installation.add(IfcBeam.class, new Product2InstallationInfo("Pset_BeamCommon", "1070", "1070", false)); // TODO: Find good codes for beams
 		product2installation.add(IfcStair.class, new Product2InstallationInfo("Pset_StairCommon", "8020", "1060", false));
 		product2installation.add(IfcRailing.class, new Product2InstallationInfo("Pset_RailingCommon", "8010", "1070", false));
+		product2installation.add(IfcBuildingElementProxy.class, new Product2InstallationInfo(null, "1070", "1070", false)); // Export unknown ifc objects
 		
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
@@ -463,7 +465,7 @@ public class CityGmlSerializer extends EmfSerializer {
 				else if(product2installation.has(ifcProduct)) {
 					Product2InstallationInfo info = product2installation.get(ifcProduct);
 					
-					if(getPropertySingleValue(ifcProduct, info.getpSet(), "IsExternal", info.isDefaultExternal())) {
+					if((info.getpSet() == null && info.isDefaultExternal()) || getPropertySingleValue(ifcProduct, info.getpSet(), "IsExternal", info.isDefaultExternal())) {
 						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
 						buildingInstallation.addFunction(info.getExternalFunction()); // TODO: No good code for beams
 						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
