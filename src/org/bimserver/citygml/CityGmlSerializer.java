@@ -63,6 +63,7 @@ import org.bimserver.models.ifc2x3.IfcSite;
 import org.bimserver.models.ifc2x3.IfcSlab;
 import org.bimserver.models.ifc2x3.IfcSlabTypeEnum;
 import org.bimserver.models.ifc2x3.IfcSpace;
+import org.bimserver.models.ifc2x3.IfcStair;
 import org.bimserver.models.ifc2x3.IfcValue;
 import org.bimserver.models.ifc2x3.IfcWall;
 import org.bimserver.models.ifc2x3.IfcWindow;
@@ -476,6 +477,20 @@ public class CityGmlSerializer extends EmfSerializer {
 					else {
 						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
 						intBuildingInstallation.addFunction("1070"); // TODO: No good code for beams
+						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
+					}
+				}
+				else if(ifcProduct instanceof IfcStair) {
+					if(getPropertySingleValue(ifcProduct, "Pset_StairCommon", "IsExternal", false)) {
+						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
+						buildingInstallation.addFunction("1060"); 
+						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
+						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
+					}
+					else {
+						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
+						intBuildingInstallation.addFunction("8020");
 						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
 						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
 					}
