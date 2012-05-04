@@ -52,6 +52,7 @@ import org.bimserver.models.ifc2x3.IfcProperty;
 import org.bimserver.models.ifc2x3.IfcPropertySet;
 import org.bimserver.models.ifc2x3.IfcPropertySetDefinition;
 import org.bimserver.models.ifc2x3.IfcPropertySingleValue;
+import org.bimserver.models.ifc2x3.IfcRailing;
 import org.bimserver.models.ifc2x3.IfcRelContainedInSpatialStructure;
 import org.bimserver.models.ifc2x3.IfcRelDecomposes;
 import org.bimserver.models.ifc2x3.IfcRelDefines;
@@ -138,6 +139,7 @@ public class CityGmlSerializer extends EmfSerializer {
 		product2installation.add(IfcColumn.class, new Product2InstallationInfo("Pset_ColumnCommon", "7020", "1050", false));
 		product2installation.add(IfcBeam.class, new Product2InstallationInfo("Pset_BeamCommon", "1070", "1070", false)); // TODO: Find good codes for beams
 		product2installation.add(IfcStair.class, new Product2InstallationInfo("Pset_StairCommon", "8020", "1060", false));
+		product2installation.add(IfcRailing.class, new Product2InstallationInfo("Pset_RailingCommon", "8010", "1070", false));
 		
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
