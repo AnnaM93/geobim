@@ -123,7 +123,8 @@ public class CityGmlSerializer extends EmfSerializer {
 	private CityGMLContext ctx;
 	private IfcEngineModel ifcEngineModel;
 	private IfcEngineGeometry geometry;
-	private MaterialManager materialManager;	
+	private MaterialManager materialManager;
+	private ClassMap<Product2InstallationInfo> product2installation;
 
 	@Override
 	public void init(IfcModelInterface ifcModel, ProjectInfo projectInfo, PluginManager pluginManager, IfcEngine ifcEngine) throws SerializerException {
@@ -132,8 +133,11 @@ public class CityGmlSerializer extends EmfSerializer {
 		ctx = new CityGMLContext();
 		citygml = new CityGMLFactory();
 		gml = new GMLFactory();
-		new XALFactory();
-		new HashMap<EObject, AbstractCityObject>();
+		
+		product2installation = new ClassMap<Product2InstallationInfo>();
+		product2installation.add(IfcColumn.class, new Product2InstallationInfo("Pset_ColumnCommon", "7020", "1050", false));
+		product2installation.add(IfcBeam.class, new Product2InstallationInfo("Pset_BeamCommon", "1070", "1070", false)); // TODO: Find good codes for beams
+		product2installation.add(IfcStair.class, new Product2InstallationInfo("Pset_StairCommon", "8020", "1060", false));
 		
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
@@ -444,20 +448,6 @@ public class CityGmlSerializer extends EmfSerializer {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
 					}
 				}
-				else if(ifcProduct instanceof IfcColumn) {
-					if(getPropertySingleValue(ifcProduct, "Pset_ColumnCommon", "IsExternal", false)) {
-						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
-						buildingInstallation.addFunction("1050");
-						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
-					}
-					else {
-						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
-						intBuildingInstallation.addFunction("7020");
-						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
-					}
-				}
 				else if(ifcProduct instanceof IfcCurtainWall) {
 					// TODO: Add information to mark this as a CurtainWall in CityGML (does not exist)
 					if(getPropertySingleValue(ifcProduct, "Pset_CurtainWallCommon", "IsExternal", true)) {
@@ -467,30 +457,19 @@ public class CityGmlSerializer extends EmfSerializer {
 						surface = buildBoundarySurface(ifcProduct, citygml.createInteriorWallSurface());
 					}
 				}
-				else if(ifcProduct instanceof IfcBeam) {
-					if(getPropertySingleValue(ifcProduct, "Pset_BeamCommon", "IsExternal", false)) {
+				// Handle all installation type of conversions (see constructor)
+				else if(product2installation.has(ifcProduct)) {
+					Product2InstallationInfo info = product2installation.get(ifcProduct);
+					
+					if(getPropertySingleValue(ifcProduct, info.getpSet(), "IsExternal", info.isDefaultExternal())) {
 						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
-						buildingInstallation.addFunction("1070"); // TODO: No good code for beams
+						buildingInstallation.addFunction(info.getExternalFunction()); // TODO: No good code for beams
 						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
 						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
 					}
 					else {
 						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
-						intBuildingInstallation.addFunction("1070"); // TODO: No good code for beams
-						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
-					}
-				}
-				else if(ifcProduct instanceof IfcStair) {
-					if(getPropertySingleValue(ifcProduct, "Pset_StairCommon", "IsExternal", false)) {
-						BuildingInstallation buildingInstallation = buildBoundarySurface(ifcProduct, citygml.createBuildingInstallation());
-						buildingInstallation.addFunction("1060"); 
-						abstractBuilding.addOuterBuildingInstallation(citygml.createBuildingInstallationProperty(buildingInstallation));
-						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(buildingInstallation)));
-					}
-					else {
-						IntBuildingInstallation intBuildingInstallation = buildBoundarySurface(ifcProduct, citygml.createIntBuildingInstallation());
-						intBuildingInstallation.addFunction("8020");
+						intBuildingInstallation.addFunction(info.getInternalFunction()); // TODO: No good code for beams
 						abstractBuilding.addInteriorBuildingInstallation(citygml.createIntBuildingInstallationProperty(intBuildingInstallation));
 						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
 					}
