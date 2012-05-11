@@ -1,0 +1,8 @@
+Unsolved problems while exporting
+=================================
+
+Model WOZOCO:
+14:37:16 WARN  Unhandled product org.bimserver.models.ifc2x3.impl.IfcOpeningElementImpl@41ad058d (org.bimserver.citygml.CityGmlSerializer.java:475)
+14:37:16 WARN  Unknown spacial structure in building storey: org.bimserver.models.ifc2x3.impl.IfcGridImpl@17bd2937 (org.bimserver.citygml.CityGmlSerializer.java:410)
+
+  
