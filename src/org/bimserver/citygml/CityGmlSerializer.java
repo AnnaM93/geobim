@@ -471,6 +471,12 @@ public class CityGmlSerializer extends EmfSerializer {
 						buildingSeparation.addGroupMember(citygml.createCityObjectGroupMember(hrefTo(intBuildingInstallation)));
 					}
 				}
+				else if(ifcProduct instanceof IfcOpeningElement) {
+					// Find the fillings of this opening and put that in the model. But we have no wall or other surface to add it too.
+					// Ifc documentation states this should not be part of a structure.
+					// No idea what to do with this.
+					LOGGER.info("Found IfcOpeningElement in special structure, it should not be here! " + ifcProduct);
+				}
 				else {
 					LOGGER.warn("Unhandled product " + ifcProduct);
 				}
@@ -508,15 +514,15 @@ public class CityGmlSerializer extends EmfSerializer {
 			IfcOpeningElement ifcOpeningElement = (IfcOpeningElement)ifcVoid.getRelatedOpeningElement();
 			for(IfcRelFillsElement ifcRelFillsElement : ifcOpeningElement.getHasFillings()) {
 				IfcElement ifcFilling = ifcRelFillsElement.getRelatedBuildingElement();
-				if(ifcFilling instanceof IfcDoor) { 
-					surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createDoor())));
+				if(ifcFilling instanceof IfcDoor) {
+						surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createDoor())));
 				}
 				else if(ifcFilling instanceof IfcWindow) {
 					surface.addOpening(citygml.createOpeningProperty(buildBoundarySurface(ifcFilling, citygml.createWindow())));
 				}
 				else {
 					LOGGER.warn("Found a filling of type I can not handle (not a door or window): " + ifcFilling);
-				}				
+				}
 			}
 		}
 	}
