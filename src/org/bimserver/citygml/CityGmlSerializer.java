@@ -24,7 +24,6 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -33,13 +32,10 @@ import javax.xml.bind.JAXBException;
 
 import org.apache.commons.beanutils.PropertyUtils;
 import org.bimserver.citygml.xbuilding.GlobalIdType;
-import org.bimserver.models.ifc2x3.IfcBeam;
 import org.bimserver.models.ifc2x3.IfcBoolean;
 import org.bimserver.models.ifc2x3.IfcBuilding;
 import org.bimserver.models.ifc2x3.IfcBuildingElement;
-import org.bimserver.models.ifc2x3.IfcBuildingElementProxy;
 import org.bimserver.models.ifc2x3.IfcBuildingStorey;
-import org.bimserver.models.ifc2x3.IfcColumn;
 import org.bimserver.models.ifc2x3.IfcCurtainWall;
 import org.bimserver.models.ifc2x3.IfcDoor;
 import org.bimserver.models.ifc2x3.IfcElement;
@@ -53,7 +49,6 @@ import org.bimserver.models.ifc2x3.IfcProperty;
 import org.bimserver.models.ifc2x3.IfcPropertySet;
 import org.bimserver.models.ifc2x3.IfcPropertySetDefinition;
 import org.bimserver.models.ifc2x3.IfcPropertySingleValue;
-import org.bimserver.models.ifc2x3.IfcRailing;
 import org.bimserver.models.ifc2x3.IfcRelContainedInSpatialStructure;
 import org.bimserver.models.ifc2x3.IfcRelDecomposes;
 import org.bimserver.models.ifc2x3.IfcRelDefines;
@@ -65,7 +60,6 @@ import org.bimserver.models.ifc2x3.IfcSite;
 import org.bimserver.models.ifc2x3.IfcSlab;
 import org.bimserver.models.ifc2x3.IfcSlabTypeEnum;
 import org.bimserver.models.ifc2x3.IfcSpace;
-import org.bimserver.models.ifc2x3.IfcStair;
 import org.bimserver.models.ifc2x3.IfcValue;
 import org.bimserver.models.ifc2x3.IfcWall;
 import org.bimserver.models.ifc2x3.IfcWindow;
@@ -86,7 +80,6 @@ import org.citygml4j.CityGMLContext;
 import org.citygml4j.builder.jaxb.JAXBBuilder;
 import org.citygml4j.factory.CityGMLFactory;
 import org.citygml4j.factory.GMLFactory;
-import org.citygml4j.factory.XALFactory;
 import org.citygml4j.model.citygml.ade.ADEComponent;
 import org.citygml4j.model.citygml.building.AbstractBoundarySurface;
 import org.citygml4j.model.citygml.building.AbstractBuilding;
@@ -113,7 +106,6 @@ import org.citygml4j.xml.io.CityGMLOutputFactory;
 import org.citygml4j.xml.io.reader.CityGMLReadException;
 import org.citygml4j.xml.io.writer.CityGMLWriteException;
 import org.citygml4j.xml.io.writer.CityGMLWriter;
-import org.eclipse.emf.ecore.EObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
@@ -137,11 +129,12 @@ public class CityGmlSerializer extends EmfSerializer {
 		gml = new GMLFactory();
 		
 		product2installation = new ClassMap<Product2InstallationInfo>();
-		product2installation.add(IfcColumn.class, new Product2InstallationInfo("Pset_ColumnCommon", "7020", "1050", false));
-		product2installation.add(IfcBeam.class, new Product2InstallationInfo("Pset_BeamCommon", "1070", "1070", false)); // TODO: Find good codes for beams
-		product2installation.add(IfcStair.class, new Product2InstallationInfo("Pset_StairCommon", "8020", "1060", false));
-		product2installation.add(IfcRailing.class, new Product2InstallationInfo("Pset_RailingCommon", "8010", "1070", false));
-		product2installation.add(IfcBuildingElementProxy.class, new Product2InstallationInfo(null, "1070", "1070", false)); // Export unknown ifc objects
+		product2installation.add(org.bimserver.models.ifc2x3.IfcColumn.class, new Product2InstallationInfo("Pset_ColumnCommon", "7020", "1050", false));
+		product2installation.add(org.bimserver.models.ifc2x3.IfcBeam.class, new Product2InstallationInfo("Pset_BeamCommon", "1070", "1070", false)); // TODO: Find good codes for beams
+		product2installation.add(org.bimserver.models.ifc2x3.IfcStair.class, new Product2InstallationInfo("Pset_StairCommon", "8020", "1060", false));
+		product2installation.add(org.bimserver.models.ifc2x3.IfcRailing.class, new Product2InstallationInfo("Pset_RailingCommon", "8010", "1070", false));
+		product2installation.add(org.bimserver.models.ifc2x3.IfcBuildingElementProxy.class, new Product2InstallationInfo(null, "1070", "1070", false)); // Export unknown ifc objects
+		product2installation.add(org.bimserver.models.ifc2x3.IfcTransportElement.class, new Product2InstallationInfo(null, "1070", "1070", false));
 		
 		EmfSerializer serializer = getPluginManager().requireIfcStepSerializer();
 		serializer.init(ifcModel, getProjectInfo(), getPluginManager(), ifcEngine);
