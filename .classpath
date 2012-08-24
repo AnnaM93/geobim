@@ -12,9 +12,21 @@
 			<attribute name="optional" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry combineaccessrules="false" kind="src" path="/Ifc"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/Plugins"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/Emf"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/Ifc">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Ifc"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry combineaccessrules="false" kind="src" path="/Plugins">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Plugins"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry combineaccessrules="false" kind="src" path="/Emf">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Emf"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="lib/activation.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

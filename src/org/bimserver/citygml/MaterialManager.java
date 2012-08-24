@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bimserver.models.ifc2x3.IfcObjectDefinition;
-import org.bimserver.models.ifc2x3.IfcPlate;
+import org.bimserver.models.ifc2x3tc1.IfcObjectDefinition;
+import org.bimserver.models.ifc2x3tc1.IfcPlate;
 import org.citygml4j.factory.CityGMLFactory;
 import org.citygml4j.model.citygml.appearance.Appearance;
 import org.citygml4j.model.citygml.appearance.Color;
