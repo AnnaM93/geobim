@@ -1,4 +1,4 @@
-package org.bimserver.citygml;
+package nl.tue.bimserver.citygml;
 
 public class Product2InstallationInfo {
 	private String pSet;

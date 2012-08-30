@@ -1,4 +1,4 @@
-package org.bimserver.citygml;
+package nl.tue.bimserver.citygml;
 
 import java.util.LinkedList;
 import java.util.List;

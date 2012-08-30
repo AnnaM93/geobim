@@ -1,4 +1,4 @@
-package org.bimserver.citygml;
+package nl.tue.bimserver.citygml;
 
 /******************************************************************************
  * Copyright (C) 2009-2012  BIMserver.org
@@ -33,12 +33,12 @@ public class CityGmlSerializerPlugin implements SerializerPlugin {
 	
 	@Override
 	public String getDescription() {
-		return "CityGmlSerializer";
+		return "Design Systems CityGML serializer";
 	}
 
 	@Override
 	public String getVersion() {
-		return "1.0";
+		return "0.5";
 	}
 
 	@Override
@@ -54,7 +54,7 @@ public class CityGmlSerializerPlugin implements SerializerPlugin {
 
 	@Override
 	public String getDefaultSerializerName() {
-		return "CityGML1.0.0";
+		return "DS-CityGML1.0.0";
 	}
 
 	@Override

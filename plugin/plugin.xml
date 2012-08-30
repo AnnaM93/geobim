@@ -2,6 +2,6 @@
 <PluginDescriptor>
 	<PluginImplementation>
 		<interfaceClass>org.bimserver.plugins.serializers.SerializerPlugin</interfaceClass>
-		<implementationClass>org.bimserver.citygml.CityGmlSerializerPlugin</implementationClass>
+		<implementationClass>nl.tue.bimserver.citygml.CityGmlSerializerPlugin</implementationClass>
 	</PluginImplementation>
 </PluginDescriptor>

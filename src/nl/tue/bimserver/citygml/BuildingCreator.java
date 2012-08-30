@@ -1,4 +1,4 @@
-package org.bimserver.citygml;
+package nl.tue.bimserver.citygml;
 
 /******************************************************************************
  * Copyright (C) 2009-2012  BIMserver.org
