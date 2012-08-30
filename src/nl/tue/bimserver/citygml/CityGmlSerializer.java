@@ -31,7 +31,6 @@ import java.util.UUID;
 import javax.xml.bind.JAXBException;
 
 import org.apache.commons.beanutils.PropertyUtils;
-import org.bimserver.citygml.xbuilding.GlobalIdType;
 import org.bimserver.models.ifc2x3tc1.IfcBoolean;
 import org.bimserver.models.ifc2x3tc1.IfcBuilding;
 import org.bimserver.models.ifc2x3tc1.IfcBuildingElement;
@@ -190,23 +189,14 @@ public class CityGmlSerializer extends EmfSerializer {
 	 */
 	private void setGlobalId(AbstractCityObject cityObject, IfcRoot ifcRoot) {
 		cityObject.setId(UUID.randomUUID().toString());
-
-		if (ifcRoot != null && ifcRoot.getGlobalId() != null && ifcRoot.getGlobalId().getWrappedValue() != null) {
-			GlobalIdType globalId = new GlobalIdType();
-			globalId.setValue(ifcRoot.getGlobalId().getWrappedValue());
-						
-			for (Element element : globalId.get_ADEComponent()) {
-				ADEComponent adeComponent = new ADEComponent(element);
-				cityObject.addGenericApplicationPropertyOfCityObject(adeComponent);
-			}
-		}
-		
 	}
 	
 	private void assignGuid(AbstractFeature cityObject, IfcRoot ifcRoot) {
 		// TODO: Implement this
 		
 		// Use the ifc uuid's as gml:id's
+		// Original the setGlobalId did something like this, maybe take a look at the
+		// old implementation.
 		// Or use the xbuilding ADE to assign the uuid's?
 		// Should we decode the ifc uuid's to normal onces?
 		
