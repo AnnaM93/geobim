@@ -31,6 +31,7 @@ import java.util.UUID;
 import javax.xml.bind.JAXBException;
 
 import org.apache.commons.beanutils.PropertyUtils;
+import org.bimserver.emf.IfcModelInterface;
 import org.bimserver.models.ifc2x3tc1.IfcBoolean;
 import org.bimserver.models.ifc2x3tc1.IfcBuilding;
 import org.bimserver.models.ifc2x3tc1.IfcBuildingElement;
@@ -72,14 +73,12 @@ import org.bimserver.plugins.ifcengine.IfcEngineInstance;
 import org.bimserver.plugins.ifcengine.IfcEngineInstanceVisualisationProperties;
 import org.bimserver.plugins.ifcengine.IfcEngineModel;
 import org.bimserver.plugins.serializers.EmfSerializer;
-import org.bimserver.plugins.serializers.IfcModelInterface;
 import org.bimserver.plugins.serializers.ProjectInfo;
 import org.bimserver.plugins.serializers.SerializerException;
 import org.citygml4j.CityGMLContext;
 import org.citygml4j.builder.jaxb.JAXBBuilder;
 import org.citygml4j.factory.CityGMLFactory;
 import org.citygml4j.factory.GMLFactory;
-import org.citygml4j.model.citygml.ade.ADEComponent;
 import org.citygml4j.model.citygml.building.AbstractBoundarySurface;
 import org.citygml4j.model.citygml.building.AbstractBuilding;
 import org.citygml4j.model.citygml.building.Building;
@@ -107,7 +106,6 @@ import org.citygml4j.xml.io.writer.CityGMLWriteException;
 import org.citygml4j.xml.io.writer.CityGMLWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Element;
 
 public class CityGmlSerializer extends EmfSerializer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CityGmlSerializer.class);
