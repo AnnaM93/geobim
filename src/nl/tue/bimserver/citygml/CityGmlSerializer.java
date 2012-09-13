@@ -151,12 +151,12 @@ public class CityGmlSerializer extends EmfSerializer {
 		return code;
 	}
 
-	private Code createCode(String value, String codeSpace) {
-		Code code = gml.createCode();
-		code.setValue(value);
-		code.setCodeSpace(codeSpace);
-		return code;
-	}
+//	private Code createCode(String value, String codeSpace) {
+//		Code code = gml.createCode();
+//		code.setValue(value);
+//		code.setCodeSpace(codeSpace);
+//		return code;
+//	}
 	
 	private List<Code> createCodeList(String... values) {
 		List<Code> list = new LinkedList<Code>();
